@@ -1,12 +1,16 @@
 package com.safe.keyboard;
 
 import android.annotation.SuppressLint;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.drawable.Drawable;
 import android.inputmethodservice.Keyboard;
 import android.inputmethodservice.KeyboardView;
 import android.os.Build;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.os.Vibrator;
@@ -30,6 +34,10 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+
+import com.keanbin.pinyinime.IPinyinDecoderService;
+import com.keanbin.pinyinime.PinyinDecoderService;
+import com.keanbin.pinyinime.PinyinIMEHelper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -511,6 +519,14 @@ public class SafeKeyboard {
         mEditText.setOnTouchListener(onEditTextTouchListener);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
+    public void putPinyinEditText(EditText mEditText) {
+        if (mEditMap == null) mEditMap = new HashMap<>();
+        startPinyinDecoderService();
+        mEditMap.put(mEditText.getId(), mEditText);
+        mEditText.setOnTouchListener(onEditTextTouchListener);
+    }
+
     public void putEditText2IdCardType(int id, EditText mEditText) {
         if (mIdCardEditMap == null) mIdCardEditMap = new HashMap<>();
         mIdCardEditMap.put(id, mEditText);
@@ -572,6 +588,10 @@ public class SafeKeyboard {
                             editable.delete(start, end);
                         }
                     }
+                    //todo pinyin chenqiao note here!
+//                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
+                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
                 } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
                     // 大小写切换
                     changeKeyboardLetterCase();
@@ -600,6 +620,7 @@ public class SafeKeyboard {
                     // 输入键盘值
                     // editable.insert(start, Character.toString((char) primaryCode));
                     editable.replace(start, end, Character.toString((char) primaryCode));
+
                     if (mEditLastKeyboardTypeArray.get(mCurrentEditText.getId(), 1) == 1 && !isCapLock && isCapes) {
                         isCapes = isCapLock = false;
                         toLowerCase();
@@ -607,6 +628,11 @@ public class SafeKeyboard {
                         keyboardView.setCapLock(isCapLock);
                         switchKeyboard();
                     }
+
+                    //todo pinyin chenqiao note here!
+//                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
+                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
                 }
 
                 // 添加按键震动
@@ -1040,4 +1066,85 @@ public class SafeKeyboard {
         }
         mVibrator = null;
     }
+
+
+
+    /**
+     * Remote Pinyin-to-Hanzi decoding engine service. 解码引擎远程服务
+     */
+    private IPinyinDecoderService mIPinyinDecoderService;
+
+    /**
+     * Connection used to bind the decoding service. 链接
+     * 词库解码远程服务PinyinDecoderService 的监听器
+     */
+    private PinyinDecoderServiceConnection mPinyinDecoderServiceConnection;
+
+
+    /**
+     * Connection used for binding to the Pinyin decoding service.
+     * 词库解码远程服务PinyinDecoderService 的监听器
+     */
+    public class PinyinDecoderServiceConnection implements ServiceConnection {
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mIPinyinDecoderService = IPinyinDecoderService.Stub
+                    .asInterface(service);
+
+            PinyinIMEHelper.getInstance().init(mIPinyinDecoderService).setPinyinInputListener(new PinyinIMEHelper.PinyinInputListener() {
+                @Override
+                public void onInputChanged(String pinyin, int tatalSize, int pageSize, int currentPage, List<String> fullList, List<String> newList, boolean isLast) {
+                    Log.d("onInput pinyin", pinyin);
+                    Log.d("onInput tatalSize", ""+tatalSize);
+                    Log.d("onInput pageSize", ""+pageSize);
+                    Log.d("onInput currentPage", ""+currentPage);
+                    Log.d("onInput fullList", fullList.size() + "");
+                    Log.d("onInput newList", newList.size() + "");
+                    Log.d("onInput isLast", isLast + "");
+
+                    Log.d("--onInput-------------", "-------------");
+
+                    Log.d("onInput fullList", fullList.toString());
+                    Log.d("onInput newList", newList.toString());
+
+
+                }
+
+                @Override
+                public void onReset() {
+
+                }
+            });
+        }
+
+        public void onServiceDisconnected(ComponentName name) {
+        }
+    }
+
+    /**
+     * 绑定词库解码远程服务PinyinDecoderService
+     *
+     * @return
+     */
+    private boolean startPinyinDecoderService() {
+        if (null == mIPinyinDecoderService) {
+            Intent serviceIntent = new Intent();
+            serviceIntent.setClass(mContext, PinyinDecoderService.class);
+
+            if (null == mPinyinDecoderServiceConnection) {
+                mPinyinDecoderServiceConnection = new PinyinDecoderServiceConnection();
+            }
+
+            // Bind service
+            if (mContext.bindService(serviceIntent, mPinyinDecoderServiceConnection,
+                    Context.BIND_AUTO_CREATE)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+
 }

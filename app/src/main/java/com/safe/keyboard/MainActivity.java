@@ -1,12 +1,19 @@
 package com.safe.keyboard;
 
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatEditText;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+
+import com.keanbin.pinyinime.IPinyinDecoderService;
+import com.keanbin.pinyinime.PinyinDecoderService;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -38,6 +45,10 @@ public class MainActivity extends AppCompatActivity {
 //        safeKeyboard.setDelDrawable(this.getResources().getDrawable(R.drawable.icon_del));
 //        safeKeyboard.setLowDrawable(this.getResources().getDrawable(R.drawable.icon_capital_default));
 //        safeKeyboard.setUpDrawable(this.getResources().getDrawable(R.drawable.icon_capital_selected));
+
+
+        AppCompatEditText appCompatEditTextPinyin = findViewById(R.id.safeAppCompactEditText_pinyin);
+        safeKeyboard.putPinyinEditText(appCompatEditTextPinyin);
 
         initView();
     }
@@ -75,4 +86,5 @@ public class MainActivity extends AppCompatActivity {
     public void onScrollEditTestClick(View view) {
         startActivity(new Intent(MainActivity.this, ScrollViewEditActivity.class));
     }
+
 }
