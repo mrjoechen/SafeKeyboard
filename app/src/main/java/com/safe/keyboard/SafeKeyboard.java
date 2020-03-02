@@ -1093,6 +1093,8 @@ public class SafeKeyboard {
             PinyinIMEHelper.getInstance().init(mIPinyinDecoderService).setPinyinInputListener(new PinyinIMEHelper.PinyinInputListener() {
                 @Override
                 public void onInputChanged(String pinyin, int tatalSize, int pageSize, int currentPage, List<String> fullList, List<String> newList, boolean isLast) {
+                    Log.d("--onInput-------------", "-------------");
+
                     Log.d("onInput pinyin", pinyin);
                     Log.d("onInput tatalSize", ""+tatalSize);
                     Log.d("onInput pageSize", ""+pageSize);
@@ -1101,11 +1103,10 @@ public class SafeKeyboard {
                     Log.d("onInput newList", newList.size() + "");
                     Log.d("onInput isLast", isLast + "");
 
-                    Log.d("--onInput-------------", "-------------");
-
                     Log.d("onInput fullList", fullList.toString());
                     Log.d("onInput newList", newList.toString());
 
+                    Log.d("--onInput-------------", "-------------");
 
                 }
 

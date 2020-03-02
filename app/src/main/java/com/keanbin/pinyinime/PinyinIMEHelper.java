@@ -102,7 +102,7 @@ public class PinyinIMEHelper {
 
     /**
      * 输入字符
-     * @param primaryCode
+     * @param primaryCode 97 - 'a' ----- 122 'z'
      * @param size
      */
     public void inputChar(int primaryCode, int size) {
