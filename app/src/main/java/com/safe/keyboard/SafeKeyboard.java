@@ -589,8 +589,8 @@ public class SafeKeyboard {
                         }
                     }
                     //todo pinyin chenqiao note here!
-//                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
-                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
+//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
 
                 } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
                     // 大小写切换
@@ -630,8 +630,8 @@ public class SafeKeyboard {
                     }
 
                     //todo pinyin chenqiao note here!
-//                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
-                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
+//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
 
                 }
 

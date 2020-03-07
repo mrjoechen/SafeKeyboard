@@ -643,6 +643,9 @@ public class DecodingInfo {
                 }
             }
             mCandidatesList.addAll(newList);
+            Log.d(TAG, newList.size() + "");
+            Log.d(TAG, newList+"");
+
         } catch (RemoteException e) {
             Log.w(TAG, "PinyinDecoderService died", e);
         }

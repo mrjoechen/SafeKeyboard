@@ -41,24 +41,30 @@ public class PinyinIMEHelper {
     private byte mPyBuf[];
     private static final int PY_STRING_MAX = 28;
 
-    private void chooseDecodingCandidate() {
+    private void chooseDecodingCandidate(int candId) {
         if (mDecodeing.mImeState != ImeState.STATE_PREDICT) {
             resetCandidates();
             int totalChoicesNum = 0;
             try {
-                if (mDecodeing.length() == 0) {
-                    totalChoicesNum = 0;
-                } else {
-                    if (mPyBuf == null)
-                        mPyBuf = new byte[PY_STRING_MAX];
-                    for (int i = 0; i < mDecodeing.length(); i++)
-                        mPyBuf[i] = (byte) mDecodeing.charAt(i); //获得拼音字符串中指定位置的字符
-                    mPyBuf[mDecodeing.length()] = 0;
+                if (candId < 0) {
+                    if (mDecodeing.length() == 0) {
+                        totalChoicesNum = 0;
+                    } else {
+                        if (mPyBuf == null)
+                            mPyBuf = new byte[PY_STRING_MAX];
+                        for (int i = 0; i < mDecodeing.length(); i++)
+                            mPyBuf[i] = (byte) mDecodeing.charAt(i); //获得拼音字符串中指定位置的字符
+                        mPyBuf[mDecodeing.length()] = 0;
 
+                        totalChoicesNum = mIPinyinDecoderService
+                                .imSearch(mPyBuf, mDecodeing.length()); //根据拼音查询候选词
+
+                    }
+                }else {
                     totalChoicesNum = mIPinyinDecoderService
-                            .imSearch(mPyBuf, mDecodeing.length()); //根据拼音查询候选词
-
+                            .imChoose(candId); //获取候选词的数量
                 }
+
             } catch (RemoteException e) {
                 e.printStackTrace();
             }
@@ -120,7 +126,7 @@ public class PinyinIMEHelper {
             mDecodeing.addSplChar((char) (primaryCode), false);
         }
 
-        chooseDecodingCandidate();
+        chooseDecodingCandidate(-1);
 
         int fetchStart = mDecodeing.mCandidatesList.size();
         int fetchSize = mDecodeing.mTotalChoicesNum - fetchStart;
@@ -233,73 +239,73 @@ public class PinyinIMEHelper {
 
     //todo *********************************** 分割线 以下代码待完善，请勿调用 *****************************************
 
-//    private ImeState mImeState = ImeState.STATE_IDLE;
-//
-//
-//    /**
-//     * 添加输入的拼音，然后进行词库查询，或者删除输入的拼音指定的字符或字符串，然后进行词库查询。
-//     *
-//     * @param keyChar
-//     * @param keyCode
-//     * @return
-//     */
-//    private boolean processSurfaceChange(int keyChar, int keyCode) {
-//        if (mDecodeing.isSplStrFull() && KeyEvent.KEYCODE_DEL != keyCode) {
-//            return true;
-//        }
-//
-//        if ((keyChar >= 'a' && keyChar <= 'z')
-//                || (keyChar == '\'' && !mDecodeing.charBeforeCursorIsSeparator())
-//                || (((keyChar >= '0' && keyChar <= '9') || keyChar == ' ') && ImeState.STATE_COMPOSING == mImeState)) {
-//            mDecodeing.addSplChar((char) keyChar, false);
-//            chooseAndUpdate(-1);
-//        } else if (keyCode == Keyboard.KEYCODE_DELETE || keyCode == -35) {
-//            mDecodeing.prepareDeleteBeforeCursor();
-//            chooseAndUpdate(-1);
-//        }
-//        return true;
-//    }
-//
-//
-//    private int mCurrentPage = -1;
-//
-//    /**
-//     * 选择候选词，并根据条件是否进行下一步的预报。
-//     *
-//     * @param candId
-//     *            如果candId小于0 ，就对输入的拼音进行查询。
-//     */
-//    private void chooseAndUpdate(int candId) {
-//        Log.i(TAG,"chooseAndUpdate... mImeState:"+mImeState);
-//
-//        if (ImeState.STATE_PREDICT != mImeState) {
-//            // Get result candidate list, if choice_id < 0, do a new decoding.
-//            // If choice_id >=0, select the candidate, and get the new candidate
-//            // list.
-//            mDecodeing.chooseDecodingCandidate(candId);
-//        } else {
-//            // Choose a prediction item.
-//            mDecodeing.choosePredictChoice(candId);
-//        }
-//
-//        Log.i(TAG,"chooseAndUpdate... length:"+mDecodeing.getComposingStr().length()+" mDecInfo.getComposingStr:"+mDecodeing.getComposingStr());
-//        System.out.println(mDecodeing.mTotalChoicesNum);
-//
-//        while (mDecodeing.preparePage(mCurrentPage + 1)){
-//            mCurrentPage++;
-//
+    private ImeState mImeState = ImeState.STATE_IDLE;
+
+
+    /**
+     * 添加输入的拼音，然后进行词库查询，或者删除输入的拼音指定的字符或字符串，然后进行词库查询。
+     *
+     * @param keyChar
+     * @param keyCode
+     * @return
+     */
+    public boolean processSurfaceChange(int keyChar, int keyCode) {
+        if (mDecodeing.isSplStrFull() && KeyEvent.KEYCODE_DEL != keyCode) {
+            return true;
+        }
+
+        if ((keyChar >= 'a' && keyChar <= 'z')
+                || (keyChar == '\'' && !mDecodeing.charBeforeCursorIsSeparator())
+                || (((keyChar >= '0' && keyChar <= '9') || keyChar == ' ') && ImeState.STATE_COMPOSING == mImeState)) {
+            mDecodeing.addSplChar((char) keyChar, false);
+            chooseAndUpdate(-1);
+        } else if (keyCode == Keyboard.KEYCODE_DELETE || keyCode == -35) {
+            mDecodeing.prepareDeleteBeforeCursor();
+            chooseAndUpdate(-1);
+        }
+        return true;
+    }
+
+
+    private int mCurrentPage = -1;
+
+    /**
+     * 选择候选词，并根据条件是否进行下一步的预报。
+     *
+     * @param candId
+     *            如果candId小于0 ，就对输入的拼音进行查询。
+     */
+    private void chooseAndUpdate(int candId) {
+        Log.i(TAG,"chooseAndUpdate... mImeState:"+mImeState);
+
+        if (ImeState.STATE_PREDICT != mImeState) {
+            // Get result candidate list, if choice_id < 0, do a new decoding.
+            // If choice_id >=0, select the candidate, and get the new candidate
+            // list.
+            mDecodeing.chooseDecodingCandidate(candId);
+        } else {
+            // Choose a prediction item.
+            mDecodeing.choosePredictChoice(candId);
+        }
+
+        Log.i(TAG,"chooseAndUpdate... length:"+mDecodeing.getComposingStr().length()+" mDecInfo.getComposingStr:"+mDecodeing.getComposingStr());
+        System.out.println(mDecodeing.mTotalChoicesNum);
+
+        while (mDecodeing.preparePage(mCurrentPage + 1)){
+            mCurrentPage++;
+
 //            int count = 0;
 //            for (int i = 0; i < mDecodeing.mPageStart.size(); i++){
 //                count = count + mDecodeing.mPageStart.get(i);
 //            }
-//            mDecodeing.mPageStart.add(mDecodeing.mCandidatesList.size());
-//
-//        }
-//
-//        System.out.println(mDecodeing.mCandidatesList);
-//
-//        mDecodeing.resetCandidates();
-//        mCurrentPage = 0;
+            mDecodeing.mPageStart.add(mDecodeing.mCandidatesList.size());
+
+        }
+
+        System.out.println(mDecodeing.mCandidatesList);
+
+        mDecodeing.resetCandidates();
+        mCurrentPage = 0;
 
 
 //        if (mDecodeing.getComposingStr().length() > 0) {
@@ -356,5 +362,5 @@ public class PinyinIMEHelper {
 //        } else {
 //            resetToIdleState(false);
 //        }
-//    }
+    }
 }
