@@ -15,6 +15,8 @@ import android.os.Looper;
 import android.os.SystemClock;
 import android.os.Vibrator;
 import android.support.annotation.NonNull;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.InputType;
 import android.util.DisplayMetrics;
@@ -34,7 +36,9 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
+import com.keanbin.pinyinime.CandiAdapter;
 import com.keanbin.pinyinime.IPinyinDecoderService;
 import com.keanbin.pinyinime.PinyinDecoderService;
 import com.keanbin.pinyinime.PinyinIMEHelper;
@@ -55,6 +59,8 @@ public class SafeKeyboard {
     private static final String TAG = "SafeKeyboard";
 
     private Context mContext;               //上下文
+
+    private boolean pinyinMode = true;
 
     private LinearLayout keyboardParentView;
     private View keyContainer;              //自定义键盘的容器View
@@ -111,6 +117,9 @@ public class SafeKeyboard {
     private int[] originalScrollPosInPar;
 
     private Vibrator mVibrator;
+    private View pinyin_layout;
+    private TextView tv_pinyin_res_temp;
+    private RecyclerView rv_candi;
 
     // 已支持多 EditText 共用一个 SafeKeyboard
 
@@ -291,6 +300,56 @@ public class SafeKeyboard {
 
         initRandomDigitKeys();
         initIdCardRandomDigitKeys();
+
+        if (pinyinMode){
+            pinyin_layout = keyContainer.findViewById(R.id.ll_pinyin_candi);
+            pinyin_layout.setVisibility(View.VISIBLE);
+            tv_pinyin_res_temp = keyContainer.findViewById(R.id.tv_pinyin_res_temp);
+            rv_candi = keyContainer.findViewById(R.id.rv_candi);
+            LinearLayoutManager layoutManager = new LinearLayoutManager(mContext);
+            layoutManager.setOrientation(LinearLayoutManager.HORIZONTAL);
+            rv_candi.setLayoutManager(layoutManager);
+            CandiAdapter adapter = new CandiAdapter();
+            rv_candi.setAdapter(adapter);
+            adapter.setOnItemClickListener((view, position) -> PinyinIMEHelper.getInstance().chooseAndUpdate(position));
+            rv_candi.addOnScrollListener(new RecyclerView.OnScrollListener() {
+
+
+                private boolean isSlidingUpward = false;
+
+                @Override
+                public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                    super.onScrollStateChanged(recyclerView, newState);
+
+                    LinearLayoutManager manager = (LinearLayoutManager) recyclerView.getLayoutManager();
+                    // 当不滑动时
+                    if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                        //获取最后一个完全显示的itemPosition
+                        int lastItemPosition = manager.findLastCompletelyVisibleItemPosition();
+                        int itemCount = manager.getItemCount();
+
+                        // 判断是否滑动到了最后一个item，并且是向上滑动
+                        if (lastItemPosition == (itemCount - 1) && isSlidingUpward) {
+                            //加载更多
+                            PinyinIMEHelper.getInstance().getNext();
+                        }
+                    }
+
+                }
+
+                @Override
+                public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                    super.onScrolled(recyclerView, dx, dy);
+                    // 大于0表示正在向上滑动，小于等于0表示停止或向下滑动
+                    isSlidingUpward = dx > 0;
+                }
+            });
+
+        }else {
+            if (pinyin_layout != null){
+                pinyin_layout.setVisibility(View.GONE);
+            }
+        }
 
         keyboardView = keyContainer.findViewById(mSafeKeyboardViewId);
         if (delDrawable == null)
@@ -580,17 +639,22 @@ public class SafeKeyboard {
                     safeHandler.post(hideRun/*, HIDE_DELAY*/);
                 } else if (primaryCode == Keyboard.KEYCODE_DELETE || primaryCode == -35) {
 
-                    // 回退键,删除字符
-                    if (editable != null && editable.length() > 0) {
-                        if (start == end) { //光标开始和结束位置相同, 即没有选中内容
-                            editable.delete(start - 1, start);
-                        } else { //光标开始和结束位置不同, 即选中EditText中的内容
-                            editable.delete(start, end);
+                    //todo pinyin chenqiao note here!
+                    boolean b = PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode);
+//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
+                    if (!b){
+                        // 回退键,删除字符
+                        if (editable != null && editable.length() > 0) {
+                            if (start == end) { //光标开始和结束位置相同, 即没有选中内容
+                                editable.delete(start - 1, start);
+                            } else { //光标开始和结束位置不同, 即选中EditText中的内容
+                                editable.delete(start, end);
+                            }
                         }
                     }
-                    //todo pinyin chenqiao note here!
-                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
-//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
+
 
                 } else if (primaryCode == Keyboard.KEYCODE_SHIFT) {
                     // 大小写切换
@@ -619,7 +683,14 @@ public class SafeKeyboard {
                 } else {
                     // 输入键盘值
                     // editable.insert(start, Character.toString((char) primaryCode));
-                    editable.replace(start, end, Character.toString((char) primaryCode));
+
+                    //todo pinyin chenqiao note here!
+                    boolean b = PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode);
+//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
+                    if (!b){
+                        editable.replace(start, end, Character.toString((char) primaryCode));
+                    }
 
                     if (mEditLastKeyboardTypeArray.get(mCurrentEditText.getId(), 1) == 1 && !isCapLock && isCapes) {
                         isCapes = isCapLock = false;
@@ -629,9 +700,7 @@ public class SafeKeyboard {
                         switchKeyboard();
                     }
 
-                    //todo pinyin chenqiao note here!
-                    PinyinIMEHelper.getInstance().processSurfaceChange(primaryCode, primaryCode);
-//                    PinyinIMEHelper.getInstance().inputChar(primaryCode, 30);
+
 
                 }
 
@@ -873,6 +942,13 @@ public class SafeKeyboard {
     };
 
     private void showKeyboard() {
+
+        if (pinyinMode && pinyin_layout != null){
+            pinyin_layout.setVisibility(View.VISIBLE);
+        }else {
+            pinyin_layout.setVisibility(View.GONE);
+        }
+
         Keyboard mKeyboard = getKeyboardByInputType();
         if (mKeyboard != null && (mKeyboard == keyboardNumber || mKeyboard == keyboardIdCard
                 || mKeyboard == keyboardNumberOnly) && keyboardView.isRandomDigit()) {
@@ -1090,9 +1166,9 @@ public class SafeKeyboard {
             mIPinyinDecoderService = IPinyinDecoderService.Stub
                     .asInterface(service);
 
-            PinyinIMEHelper.getInstance().init(mIPinyinDecoderService).setPinyinInputListener(new PinyinIMEHelper.PinyinInputListener() {
+            PinyinIMEHelper.getInstance().init(mIPinyinDecoderService).setNewPinyinInputListener(new PinyinIMEHelper.NewPinyinInputListener() {
                 @Override
-                public void onInputChanged(String pinyin, int tatalSize, int pageSize, int currentPage, List<String> fullList, List<String> newList, boolean isLast) {
+                public void onInputChanged(String pinyin, int tatalSize, int pageSize, int currentPage, List<String> fullList, List<String> newList, boolean isLast, String composestr) {
                     Log.d("--onInput-------------", "-------------");
 
                     Log.d("onInput pinyin", pinyin);
@@ -1108,11 +1184,53 @@ public class SafeKeyboard {
 
                     Log.d("--onInput-------------", "-------------");
 
+
+                    if (pinyinMode && pinyin_layout != null){
+                        tv_pinyin_res_temp.setText(composestr);
+                        ((CandiAdapter)rv_candi.getAdapter()).addData(newList, true);
+                    }
+
                 }
+
+
 
                 @Override
                 public void onReset() {
+                    tv_pinyin_res_temp.setText("");
+                }
 
+                @Override
+                public void onFinish(String result) {
+                    tv_pinyin_res_temp.setText("");
+
+                    Editable editable = mCurrentEditText.getText();
+                    int start = mCurrentEditText.getSelectionStart();
+                    int end = mCurrentEditText.getSelectionEnd();
+                    editable.replace(start, end, result);
+                    ((CandiAdapter)rv_candi.getAdapter()).removeData();
+                }
+
+                @Override
+                public void onResultChanged(String pinyin, int tatalSize, int pageSize, int currentPage, List<String> fullList, List<String> newList, boolean isLast, String composeStr) {
+                    if (pinyinMode && pinyin_layout != null){
+                        tv_pinyin_res_temp.setText(composeStr);
+                        ((CandiAdapter)rv_candi.getAdapter()).addData(newList, false);
+                    }
+
+                    Log.d("--onInput-------------", "-------------");
+
+                    Log.d("onInput pinyin", pinyin);
+                    Log.d("onInput tatalSize", ""+tatalSize);
+                    Log.d("onInput pageSize", ""+pageSize);
+                    Log.d("onInput currentPage", ""+currentPage);
+                    Log.d("onInput fullList", fullList.size() + "");
+                    Log.d("onInput newList", newList.size() + "");
+                    Log.d("onInput isLast", isLast + "");
+
+                    Log.d("onInput fullList", fullList.toString());
+                    Log.d("onInput newList", newList.toString());
+
+                    Log.d("--onInput-------------", "-------------");
                 }
             });
         }

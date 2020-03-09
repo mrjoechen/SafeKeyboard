@@ -44,7 +44,7 @@ public class DecodingInfo {
     /**
      * Maximum number of candidates to display in one page. 一页显示候选词的最大个数
      */
-    private static final int MAX_PAGE_SIZE_DISPLAY = 16;
+    public static final int MAX_PAGE_SIZE_DISPLAY = 16;
 
     /**
      * Spelling (Pinyin) string. 拼音字符串
@@ -392,6 +392,7 @@ public class DecodingInfo {
         mPageStart.add(0);
         mCnToPage.clear();
         mCnToPage.add(0);
+        lastNewList.clear();
     }
 
     /**
@@ -643,6 +644,8 @@ public class DecodingInfo {
                 }
             }
             mCandidatesList.addAll(newList);
+            lastNewList.clear();
+            lastNewList.addAll(newList);
             Log.d(TAG, newList.size() + "");
             Log.d(TAG, newList+"");
 
@@ -650,6 +653,8 @@ public class DecodingInfo {
             Log.w(TAG, "PinyinDecoderService died", e);
         }
     }
+
+    public List<String> lastNewList = new ArrayList<>();
 
     /**
      * 判断指定页是否准备好了？
